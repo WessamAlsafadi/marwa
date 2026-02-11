@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Paintblade: Birthday Run (Portrait) 🎨</title>
+  <style>
+    html,body{margin:0;height:100%;background:#070b18;color:#eaf0ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
+    .top{width:min(520px,96vw);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .card{border:1px solid #22305c;background:#0b1230cc;border-radius:14px;padding:10px 12px;backdrop-filter:blur(8px);box-shadow:0 12px 30px #0008}
+    .title{font-weight:900;letter-spacing:.2px}
+    .muted{color:#b8c3ee;font-size:12px;line-height:1.25}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    button{cursor:pointer;border:1px solid #2a3a70;background:#0b1230cc;color:#eaf0ff;border-radius:12px;padding:9px 12px;font-weight:800}
+    button:hover{border-color:#4a5fb8}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3a70; border-radius:8px; background:#0a1027}
+    .gameArea{position:relative;width:min(520px,96vw)}
+    canvas{
+      width:100%;
+      height:min(78vh, 820px);  /* portrait-friendly */
+      border:1px solid #22305c;border-radius:18px;
+      background:
+        radial-gradient(900px 500px at 20% 20%, #1b2a64 0%, transparent 55%),
+        radial-gradient(800px 500px at 80% 20%, #4a1f5c 0%, transparent 58%),
+        linear-gradient(160deg,#070b18,#0a1027);
+      box-shadow:0 16px 55px #000a;
+      touch-action:none;
+    }
+
+    /* Mobile controls overlay */
+    .controls{position:absolute; inset:0; pointer-events:none;}
+    .joystick{
+      position:absolute; left:12px; bottom:12px;
+      width:126px; height:126px;
+      pointer-events:auto;
+      touch-action:none;
+    }
+    .joyBase{
+      width:100%; height:100%;
+      border-radius:999px;
+      border:1px solid rgba(120,140,220,0.55);
+      background: rgba(10,16,39,0.35);
+      backdrop-filter: blur(6px);
+      display:grid; place-items:center;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    }
+    .joyStick{
+      width:58px; height:58px;
+      border-radius:999px;
+      border:1px solid rgba(120,140,220,0.8);
+      background: rgba(20,30,70,0.55);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+      transform: translate(0px,0px);
+    }
+
+    .btnPad{
+      position:absolute; right:12px; bottom:12px;
+      display:flex; flex-direction:column; gap:10px;
+      pointer-events:auto;
+    }
+    .btnRound{
+      width:66px;height:66px;border-radius:999px;
+      border:1px solid rgba(120,140,220,0.6);
+      background: rgba(10,16,39,0.45);
+      backdrop-filter: blur(6px);
+      color:#eaf0ff;
+      font-weight:1000;
+      display:grid; place-items:center;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+      user-select:none;
+      touch-action:none;
+    }
+    .btnRound:active{transform: scale(0.98)}
+    .btnLabel{font-size:11px;color:#b8c3ee;margin-top:2px}
+    .toast{
+      position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+      background:#0a1027ee;border:1px solid #2a3a70;border-radius:999px;
+      padding:10px 14px;box-shadow:0 18px 55px #000b;opacity:0;transition:.2s;pointer-events:none;
+      max-width:min(92vw,520px);text-align:center
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+    /* Win modal (shows final image) */
+    .modal{
+      position:fixed; inset:0; display:none;
+      align-items:center; justify-content:center;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      z-index: 999;
+      padding: 16px;
+    }
+    .modal.show{display:flex;}
+    .modalCard{
+      width:min(520px, 96vw);
+      border:1px solid #2a3a70;
+      background:#0b1230ee;
+      border-radius:18px;
+      box-shadow:0 20px 70px rgba(0,0,0,0.75);
+      overflow:hidden;
+    }
+    .modalHead{padding:14px 14px 0 14px;}
+    .modalTitle{font-weight:1000;font-size:18px;}
+    .modalText{color:#b8c3ee;font-size:13px;line-height:1.35;margin-top:6px;}
+    .modalImgWrap{padding:14px;}
+    .modalImg{
+      width:100%;
+      max-height: 52vh;
+      object-fit: cover;
+      border-radius:14px;
+      border:1px solid #2a3a70;
+      background:#070b18;
+    }
+    .modalActions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;padding:0 14px 14px 14px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="card" style="flex:1; min-width:min(520px,96vw)">
+        <div class="title" id="gameTitle">Paintblade: Birthday Run 🎨</div>
+        <div class="muted" id="gameSub">Portrait action shooter. Survive. Collect paint. Beat Creative Block.</div>
+      </div>
+
+      <div class="card" style="flex:1; min-width:min(520px,96vw)">
+        <div class="row" style="justify-content:space-between">
+          <div class="row">
+            <span>❤️ <b id="hudHP">5</b></span>
+            <span>🎨 Paint <b id="hudPaint">0</b></span>
+            <span>⚡ Wave <b id="hudWave">1</b></span>
+          </div>
+          <div class="row">
+            <span class="kbd">Desktop: WASD</span>
+            <span class="kbd">Space</span>
+            <span class="kbd">Shift</span>
+          </div>
+        </div>
+        <div class="muted" id="hudHint">Mobile: left joystick to move. Right buttons to shoot/dash.</div>
+      </div>
+
+      <div class="row" style="width:min(520px,96vw);justify-content:space-between">
+        <button id="btnStart">Start</button>
+        <button id="btnRestart">Restart</button>
+      </div>
+    </div>
+
+    <div class="gameArea">
+      <canvas id="c"></canvas>
+
+      <!-- Mobile Controls -->
+      <div class="controls" id="controls">
+        <div class="joystick" id="joystick">
+          <div class="joyBase">
+            <div class="joyStick" id="joyStick"></div>
+          </div>
+        </div>
+
+        <div class="btnPad">
+          <div class="btnRound" id="btnShoot">
+            🔫
+            <div class="btnLabel">Shoot</div>
+          </div>
+          <div class="btnRound" id="btnDash">
+            ⚡
+            <div class="btnLabel">Dash</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Win Modal with final image -->
+  <div class="modal" id="winModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle" id="winTitle">YOU WON 🎉</div>
+        <div class="modalText" id="winText"></div>
+      </div>
+      <div class="modalImgWrap">
+        <img src="final.png" class="modalImg" id="winImg" alt="Final image"/>
+      </div>
+      <div class="modalActions">
+        <button id="btnCloseWin">Close</button>
+        <button id="btnRestartWin">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/***********************
+ * CUSTOMIZE ✅
+ ***********************/
+const CONFIG = {
+  friendName: "Mardakoosh",
+  nickname: "Legend",
+  yourName: "Wessam",
+  finalLine: "Happy Birthday! Your art hits different. Keep creating — the world needs it.",
+
+  // Put these images in the same folder as the HTML (recommended)
+  characterImageSrc: "character.png", // transparent PNG recommended
+  endImageSrc: "final.jpg",           // final picture shown on win (jpg/png)
+};
+
+/***********************
+ * UI helpers
+ ***********************/
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1400);
+}
+document.getElementById("gameTitle").textContent = `Paintblade — for ${CONFIG.friendName} 🎨`;
+document.getElementById("gameSub").textContent = `Made by ${CONFIG.yourName} for ${CONFIG.nickname}. Beat Creative Block.`;
+
+/***********************
+ * IMAGE LOADING
+ ***********************/
+const characterImg = new Image();
+let characterImgReady = false;
+characterImg.onload = () => characterImgReady = true;
+characterImg.onerror = () => characterImgReady = false;
+characterImg.src = CONFIG.characterImageSrc;
+
+const endImg = new Image();
+let endImgReady = false;
+endImg.onload = () => endImgReady = true;
+endImg.onerror = () => endImgReady = false;
+endImg.src = CONFIG.endImageSrc;
+
+/***********************
+ * CANVAS SETUP (responsive + DPR)
+ ***********************/
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+/***********************
+ * INPUT (desktop + mobile)
+ ***********************/
+const keys = new Set();
+window.addEventListener("keydown", e => {
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Shift","w","a","s","d","W","A","S","D"].includes(e.key)) e.preventDefault();
+  keys.add(e.key);
+});
+window.addEventListener("keyup", e => keys.delete(e.key));
+
+// Mobile joystick
+let joyActive = false;
+let joyOrigin = {x:0,y:0};
+let joyVec = {x:0,y:0}; // -1..1
+const joy = document.getElementById("joystick");
+const joyStickEl = document.getElementById("joyStick");
+const JOY_RADIUS = 44;
+
+function getLocalPoint(el, clientX, clientY){
+  const r = el.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+function setJoyStick(x,y){ joyStickEl.style.transform = `translate(${x}px, ${y}px)`; }
+
+joy.addEventListener("pointerdown", (e)=>{
+  joyActive = true;
+  joy.setPointerCapture(e.pointerId);
+  const p = getLocalPoint(joy, e.clientX, e.clientY);
+  joyOrigin = {x: p.x, y: p.y};
+  joyVec = {x:0,y:0};
+  setJoyStick(0,0);
+});
+joy.addEventListener("pointermove", (e)=>{
+  if(!joyActive) return;
+  const p = getLocalPoint(joy, e.clientX, e.clientY);
+  let dx = p.x - joyOrigin.x;
+  let dy = p.y - joyOrigin.y;
+  const d = Math.hypot(dx,dy);
+  const m = d > JOY_RADIUS ? (JOY_RADIUS / d) : 1;
+  dx *= m; dy *= m;
+  joyVec = { x: dx/JOY_RADIUS, y: dy/JOY_RADIUS };
+  setJoyStick(dx,dy);
+});
+function resetJoy(){
+  joyActive = false;
+  joyVec = {x:0,y:0};
+  setJoyStick(0,0);
+}
+joy.addEventListener("pointerup", resetJoy);
+joy.addEventListener("pointercancel", resetJoy);
+
+// Mobile buttons
+let shootHeld = false;
+document.getElementById("btnShoot").addEventListener("pointerdown", (e)=>{
+  shootHeld = true;
+  e.preventDefault();
+});
+document.getElementById("btnShoot").addEventListener("pointerup", ()=> shootHeld = false);
+document.getElementById("btnShoot").addEventListener("pointercancel", ()=> shootHeld = false);
+
+document.getElementById("btnDash").addEventListener("pointerdown", (e)=>{
+  requestDash();
+  e.preventDefault();
+});
+
+// Aim: drag on right half of canvas to aim (optional)
+let aimTouch = null;
+canvas.addEventListener("pointerdown", (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  if(x > rect.width * 0.45){
+    aimTouch = { id: e.pointerId };
+    canvas.setPointerCapture(e.pointerId);
+    updateAimFromPointer(e);
+  }
+});
+canvas.addEventListener("pointermove", (e)=>{
+  if(aimTouch && aimTouch.id === e.pointerId) updateAimFromPointer(e);
+});
+canvas.addEventListener("pointerup", (e)=>{
+  if(aimTouch && aimTouch.id === e.pointerId) aimTouch = null;
+});
+canvas.addEventListener("pointercancel", ()=> aimTouch = null);
+
+function updateAimFromPointer(e){
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  player.aim = Math.atan2(y - player.y, x - player.x);
+}
+
+/***********************
+ * GAME STATE
+ ***********************/
+let running = false;
+let tPrev = 0;
+
+const state = {
+  hp: 5,
+  paint: 0,
+  wave: 1,
+  score: 0,
+  boss: null,
+  waveTimer: 0,
+  spawnInterval: 1.25, // easy start
+  enemiesToSpawn: 8,   // easy start
+  enemiesSpawned: 0,
+  gameOver: false,
+  win: false,
+};
+
+const player = {
+  x: 300,
+  y: 240,
+  r: 14,
+  spd: 255,
+  dashCd: 0,
+  dashTime: 0,
+  invuln: 0,
+  aim: 0,
+  shootCd: 0,
+};
+
+let bullets = [];
+let enemies = [];
+let pickups = [];
+let particles = [];
+let confetti = [];
+
+function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+function dist(a,b,c,d){ return Math.hypot(a-c, b-d); }
+
+function updateHUD(){
+  document.getElementById("hudHP").textContent = state.hp;
+  document.getElementById("hudPaint").textContent = state.paint;
+  document.getElementById("hudWave").textContent = state.wave;
+
+  const hint = state.boss
+    ? "Boss is here: Creative Block. Keep moving. Dash if surrounded."
+    : (state.wave <= 2
+      ? "Easy waves: collect 🎨 paint. More paint = faster shots."
+      : "It gets harder each wave. Wave 4 = boss.");
+  document.getElementById("hudHint").textContent = hint;
+}
+
+function vignette(){
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+  const g = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, Math.max(w,h));
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,w,h);
+}
+function bigText(txt,x,y,size){
+  ctx.save();
+  ctx.font = `900 ${size}px system-ui, -apple-system, Segoe UI, Roboto`;
+  ctx.textAlign="center";
+  ctx.fillStyle="#eaf0ff";
+  ctx.shadowColor="rgba(0,0,0,0.6)";
+  ctx.shadowBlur=18;
+  ctx.fillText(txt,x,y);
+  ctx.restore();
+}
+function smallText(txt,x,y){
+  ctx.save();
+  ctx.font = `700 16px system-ui, -apple-system, Segoe UI, Roboto`;
+  ctx.textAlign="center";
+  ctx.fillStyle="rgba(184,195,238,0.95)";
+  ctx.fillText(txt,x,y);
+  ctx.restore();
+}
+
+function reset(){
+  running = false;
+  tPrev = 0;
+
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+
+  state.hp = 5;
+  state.paint = 0;
+  state.wave = 1;
+  state.score = 0;
+  state.boss = null;
+  state.waveTimer = 0;
+  state.spawnInterval = 1.25;
+  state.enemiesToSpawn = 8;
+  state.enemiesSpawned = 0;
+  state.gameOver = false;
+  state.win = false;
+
+  player.x = w/2;
+  player.y = h/2;
+  player.dashCd = 0;
+  player.dashTime = 0;
+  player.invuln = 0;
+  player.shootCd = 0;
+  player.aim = 0;
+
+  bullets = [];
+  enemies = [];
+  pickups = [];
+  particles = [];
+  confetti = [];
+
+  hideWinModal();
+  updateHUD();
+  drawSplash();
+}
+
+function drawSplash(){
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+
+  ctx.clearRect(0,0,w,h);
+  vignette();
+  bigText("PAINTBLADE", w/2, h*0.32, Math.max(40, Math.min(56, w*0.11)));
+  smallText(`For ${CONFIG.friendName} — tap Start`, w/2, h*0.40);
+  smallText(`Mobile: joystick + Shoot + Dash`, w/2, h*0.46);
+  smallText(`Boss appears on Wave 4`, w/2, h*0.52);
+
+  drawPlayer(player.x, player.y);
+}
+
+function drawPlayer(x,y){
+  ctx.save();
+  ctx.translate(x,y);
+
+  const blink = (player.invuln>0 && (Math.floor(performance.now()/80)%2===0));
+  const alpha = blink ? 0.35 : 1;
+
+  if(characterImgReady){
+    // Draw sprite (no rotation) + small blade indicator
+    const size = 44;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(characterImg, -size/2, -size/2, size, size);
+
+    // blade indicator
+    ctx.rotate(player.aim);
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = `hsla(${(state.paint*20)%360},95%,65%,0.95)`;
+    ctx.fillRect(20,-4,18,8);
+  } else {
+    // fallback circle character
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `rgba(140,120,255,1)`;
+    ctx.beginPath();
+    ctx.arc(0,0,player.r,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.rotate(player.aim);
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = `hsla(${(state.paint*20)%360},95%,65%,0.95)`;
+    ctx.fillRect(player.r-2,-4,18,8);
+  }
+
+  ctx.restore();
+}
+
+function burst(x,y,n){
+  for(let i=0;i<n;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*260,
+      vy:(Math.random()-0.5)*260,
+      r: 2 + Math.random()*2,
+      life: 0.45 + Math.random()*0.65,
+      hue: (state.paint*22 + i*11) % 360
+    });
+  }
+}
+
+function spawnPickup(x,y){
+  pickups.push({x,y,r:7,vy:-30,life:6});
+}
+
+function spawnEnemy(kind="grunt"){
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+  const edge = Math.floor(Math.random()*4);
+  let x,y;
+  if(edge===0){x=-20;y=Math.random()*h;}
+  if(edge===1){x=w+20;y=Math.random()*h;}
+  if(edge===2){x=Math.random()*w;y=-20;}
+  if(edge===3){x=Math.random()*w;y=h+20;}
+
+  enemies.push({
+    kind,
+    x,y,
+    r: kind==="tank" ? 18 : 14,
+    hp: kind==="tank" ? 4 : 2,
+    spd: kind==="tank" ? 105 : 145 + Math.random()*45,
+    wob: Math.random()*Math.PI*2,
+  });
+}
+
+function shoot(){
+  if(player.shootCd>0) return;
+  player.shootCd = clamp(0.26 - state.paint*0.007, 0.10, 0.26);
+
+  const speed = 520 + state.paint*12;
+  bullets.push({
+    x: player.x,
+    y: player.y,
+    vx: Math.cos(player.aim)*speed,
+    vy: Math.sin(player.aim)*speed,
+    r: 4,
+    life: 1.7,
+    enemy: false
+  });
+  burst(player.x + Math.cos(player.aim)*(player.r+12), player.y + Math.sin(player.aim)*(player.r+12), 10);
+}
+
+function damagePlayer(amount){
+  if(player.invuln>0) return;
+  state.hp -= amount;
+  player.invuln = 0.9;
+  toast("Ouch! Creative Block hit you 😤");
+  if(state.hp<=0){
+    state.hp=0;
+    state.gameOver=true;
+    running=false;
+    endScreen(false);
+  }
+  updateHUD();
+}
+
+function spawnBoss(){
+  const w = canvas.getBoundingClientRect().width;
+  state.boss = {
+    x: w/2,
+    y: 110,
+    r: 34,
+    hp: 85 + state.wave*8,
+    spd: 115,
+    shootCd: 0,
+    maxHp: 85 + state.wave*8
+  };
+  toast("BOSS: CREATIVE BLOCK 😈");
+  updateHUD();
+}
+
+function requestDash(){
+  if(player.dashCd>0) return;
+  player.dashCd = 1.05;
+  player.dashTime = 0.14;
+  player.invuln = 0.18;
+  toast("DASH ⚡");
+}
+
+/***********************
+ * WIN MODAL
+ ***********************/
+function showWinModal(){
+  const modal = document.getElementById("winModal");
+  const title = document.getElementById("winTitle");
+  const text = document.getElementById("winText");
+  const img = document.getElementById("winImg");
+
+  title.textContent = `YOU WON 🎉  Happy Birthday, ${CONFIG.friendName}!`;
+  text.textContent = CONFIG.finalLine;
+
+  // show end image if available; otherwise show nothing (but still win)
+  if(endImgReady){
+    img.src = CONFIG.endImageSrc;
+    img.style.display = "block";
+  } else {
+    img.style.display = "block";
+  }
+
+  modal.classList.add("show");
+}
+
+function hideWinModal(){
+  document.getElementById("winModal").classList.remove("show");
+}
+
+document.getElementById("btnCloseWin").addEventListener("click", hideWinModal);
+document.getElementById("btnRestartWin").addEventListener("click", ()=>{
+  hideWinModal();
+  reset();
+});
+
+/***********************
+ * AUTO AIM (if user not aiming)
+ ***********************/
+function autoAimAtNearestEnemy(){
+  if(aimTouch) return;
+  if(!enemies.length && !state.boss) return;
+
+  let tx=null, ty=null;
+  if(state.boss){
+    tx = state.boss.x; ty = state.boss.y;
+  } else {
+    let best = null, bestD = Infinity;
+    for(const e of enemies){
+      const d = dist(player.x,player.y,e.x,e.y);
+      if(d < bestD){ bestD=d; best=e; }
+    }
+    if(best){ tx = best.x; ty = best.y; }
+  }
+  if(tx!==null){
+    player.aim = Math.atan2(ty - player.y, tx - player.x);
+  }
+}
+
+/***********************
+ * LOOP
+ ***********************/
+function start(){
+  if(state.gameOver || state.win) reset();
+  running = true;
+  tPrev = performance.now();
+  toast("GO!");
+  requestAnimationFrame(loop);
+}
+
+function loop(t){
+  if(!running) return;
+  const dt = Math.min(0.033, (t - tPrev)/1000);
+  tPrev = t;
+  update(dt);
+  drawFrame(dt);
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  // cooldowns
+  player.shootCd = Math.max(0, player.shootCd - dt);
+  player.dashCd = Math.max(0, player.dashCd - dt);
+  player.dashTime = Math.max(0, player.dashTime - dt);
+  player.invuln = Math.max(0, player.invuln - dt);
+
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+
+  // movement: desktop + joystick
+  let mx=0,my=0;
+  if(keys.has("w")||keys.has("W")||keys.has("ArrowUp")) my -= 1;
+  if(keys.has("s")||keys.has("S")||keys.has("ArrowDown")) my += 1;
+  if(keys.has("a")||keys.has("A")||keys.has("ArrowLeft")) mx -= 1;
+  if(keys.has("d")||keys.has("D")||keys.has("ArrowRight")) mx += 1;
+
+  mx += joyVec.x;
+  my += joyVec.y;
+
+  const mag = Math.hypot(mx,my);
+  if(mag > 1){ mx/=mag; my/=mag; }
+
+  let speed = player.spd;
+  if(player.dashTime>0) speed = 740;
+
+  player.x += mx * speed * dt;
+  player.y += my * speed * dt;
+
+  player.x = clamp(player.x, player.r, w - player.r);
+  player.y = clamp(player.y, player.r, h - player.r);
+
+  if(keys.has("Shift")) requestDash();
+
+  // aim assist
+  autoAimAtNearestEnemy();
+
+  // shoot
+  if(keys.has(" ") || shootHeld) shoot();
+
+  // bullets
+  for(const b of bullets){
+    b.x += b.vx*dt;
+    b.y += b.vy*dt;
+    b.life -= dt;
+  }
+  bullets = bullets.filter(b => b.life>0 && b.x>-60 && b.x<w+60 && b.y>-60 && b.y<h+60);
+
+  // particles
+  for(const p of particles){
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vx *= (1 - 1.4*dt);
+    p.vy *= (1 - 1.4*dt);
+    p.life -= dt;
+  }
+  particles = particles.filter(p=>p.life>0);
+
+  // pickups
+  for(const p of pickups){
+    p.life -= dt;
+    p.y += p.vy*dt;
+    p.vy += 90*dt;
+    if(dist(p.x,p.y,player.x,player.y) < p.r + player.r){
+      state.paint += 1;
+      state.score += 10;
+      toast("+1 Paint 🎨");
+      p.life = -1;
+      updateHUD();
+    }
+  }
+  pickups = pickups.filter(p=>p.life>0);
+
+  // waves (easy -> harder)
+  if(!state.boss){
+    state.waveTimer += dt;
+    if(state.waveTimer >= state.spawnInterval && state.enemiesSpawned < state.enemiesToSpawn){
+      state.waveTimer = 0;
+
+      let kind = "grunt";
+      if(state.wave >= 3 && Math.random() < 0.22) kind = "tank";
+      if(state.wave >= 6 && Math.random() < 0.12) kind = "tank";
+
+      spawnEnemy(kind);
+      state.enemiesSpawned += 1;
+    }
+
+    if(state.enemiesSpawned >= state.enemiesToSpawn && enemies.length===0){
+      state.wave += 1;
+
+      state.enemiesToSpawn = Math.floor(8 + state.wave*4);
+      state.enemiesSpawned = 0;
+      state.spawnInterval = clamp(1.25 - state.wave*0.11, 0.38, 1.25);
+
+      toast(`Wave ${state.wave} 🔥`);
+      updateHUD();
+
+      if(state.wave === 4) spawnBoss();
+    }
+  }
+
+  // enemies chase
+  for(const e of enemies){
+    e.wob += dt*2.5;
+    const tx = player.x + Math.cos(e.wob)*10;
+    const ty = player.y + Math.sin(e.wob)*10;
+    const ang = Math.atan2(ty - e.y, tx - e.x);
+    e.x += Math.cos(ang)*e.spd*dt;
+    e.y += Math.sin(ang)*e.spd*dt;
+
+    if(dist(e.x,e.y,player.x,player.y) < e.r + player.r){
+      damagePlayer(1);
+      const k = Math.atan2(player.y-e.y, player.x-e.x);
+      player.x = clamp(player.x + Math.cos(k)*18, player.r, w-player.r);
+      player.y = clamp(player.y + Math.sin(k)*18, player.r, h-player.r);
+    }
+  }
+
+  // bullet hits enemies
+  for(const b of bullets){
+    if(b.enemy) continue;
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      if(dist(b.x,b.y,e.x,e.y) < b.r + e.r){
+        e.hp -= 1 + Math.floor(state.paint/10);
+        b.life = -1;
+        burst(b.x,b.y,8);
+        if(e.hp<=0){
+          state.score += 50;
+          if(Math.random() < 0.85) spawnPickup(e.x,e.y);
+          burst(e.x,e.y,18);
+        }
+      }
+    }
+  }
+  enemies = enemies.filter(e=>e.hp>0);
+
+  // boss
+  if(state.boss){
+    const B = state.boss;
+    const ang = Math.atan2(player.y - B.y, player.x - B.x);
+    B.x += Math.cos(ang)*B.spd*dt;
+    B.y += Math.sin(ang)*B.spd*dt;
+
+    B.shootCd -= dt;
+    if(B.shootCd<=0){
+      B.shootCd = clamp(1.05 - state.paint*0.01, 0.55, 1.05);
+      const n = 8;
+      for(let i=0;i<n;i++){
+        const a = ang + (i - (n-1)/2) * 0.16;
+        bullets.push({
+          x: B.x, y: B.y,
+          vx: Math.cos(a)*(250+Math.random()*60),
+          vy: Math.sin(a)*(250+Math.random()*60),
+          r: 5,
+          life: 1.9,
+          enemy: true
+        });
+      }
+    }
+
+    // enemy bullets hit player
+    for(const b of bullets){
+      if(!b.enemy) continue;
+      if(dist(b.x,b.y,player.x,player.y) < b.r + player.r){
+        b.life = -1;
+        damagePlayer(1);
+        burst(player.x, player.y, 14);
+      }
+    }
+
+    // player bullets hit boss
+    for(const b of bullets){
+      if(b.enemy) continue;
+      if(dist(b.x,b.y,B.x,B.y) < b.r + B.r){
+        B.hp -= 1 + Math.floor(state.paint/6);
+        b.life = -1;
+        burst(b.x,b.y,10);
+        if(B.hp <= 0){
+          state.win = true;
+          running = false;
+          endScreen(true);
+          return;
+        }
+      }
+    }
+
+    if(dist(B.x,B.y,player.x,player.y) < B.r + player.r){
+      damagePlayer(2);
+    }
+  }
+
+  updateHUD();
+}
+
+function drawFrame(dt){
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+
+  ctx.clearRect(0,0,w,h);
+
+  // stars
+  ctx.save();
+  for(let i=0;i<60;i++){
+    const x = (i*157) % w;
+    const y = (i*311) % h;
+    ctx.fillStyle = "rgba(220,230,255,0.08)";
+    ctx.fillRect(x,y,2,2);
+  }
+  ctx.restore();
+
+  // pickups
+  for(const p of pickups){
+    ctx.fillStyle = `hsla(${(state.paint*24)%360},95%,65%,0.95)`;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+
+  // enemies
+  for(const e of enemies){
+    const hue = e.kind==="tank" ? 10 : 330;
+    ctx.fillStyle = `hsla(${hue},90%,60%,0.95)`;
+    ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.beginPath(); ctx.arc(e.x-5,e.y-3,2.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x+5,e.y-3,2.5,0,Math.PI*2); ctx.fill();
+  }
+
+  // boss
+  if(state.boss){
+    const B = state.boss;
+
+    ctx.save();
+    ctx.translate(B.x,B.y);
+    ctx.fillStyle = `hsla(300,90%,55%,0.95)`;
+    ctx.beginPath(); ctx.arc(0,0,B.r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="rgba(0,0,0,0.35)";
+    ctx.fillRect(-18,-8,36,10);
+    ctx.restore();
+
+    const bw = Math.min(340, w*0.70);
+    const bh = 10;
+    const bx = w/2 - bw/2, by = 16;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(bx,by,bw,bh);
+    ctx.fillStyle = "rgba(255,80,140,0.85)";
+    ctx.fillRect(bx,by, bw * Math.max(0, state.boss.hp/state.boss.maxHp), bh);
+    ctx.strokeStyle = "rgba(70,90,170,0.8)";
+    ctx.strokeRect(bx,by,bw,bh);
+    ctx.fillStyle = "rgba(184,195,238,0.95)";
+    ctx.font="800 12px system-ui";
+    ctx.textAlign="center";
+    ctx.fillText("CREATIVE BLOCK", w/2, by+24);
+  }
+
+  // bullets
+  for(const b of bullets){
+    const hue = b.enemy ? 330 : (state.paint*22)%360;
+    ctx.fillStyle = `hsla(${hue},95%,65%,0.95)`;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+  }
+
+  // particles
+  for(const p of particles){
+    ctx.fillStyle = `hsla(${p.hue},95%,70%,${Math.max(0,p.life)})`;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+
+  // player
+  drawPlayer(player.x, player.y);
+
+  // score
+  ctx.fillStyle="rgba(184,195,238,0.9)";
+  ctx.font="800 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  ctx.textAlign="left";
+  ctx.fillText(`Score: ${state.score}`, 14, h-14);
+
+  vignette();
+}
+
+function endScreen(win){
+  const w = canvas.getBoundingClientRect().width;
+  const h = canvas.getBoundingClientRect().height;
+
+  ctx.clearRect(0,0,w,h);
+  vignette();
+
+  if(win){
+    bigText("YOU WON 🎉", w/2, h*0.40, Math.max(44, Math.min(60, w*0.12)));
+    smallText(`Happy Birthday, ${CONFIG.friendName}!`, w/2, h*0.50);
+    smallText(`Tap Close / Restart`, w/2, h*0.56);
+    showWinModal();
+  } else {
+    bigText("DEFEATED 💀", w/2, h*0.40, Math.max(44, Math.min(60, w*0.12)));
+    smallText("Try again. Keep moving in circles.", w/2, h*0.50);
+    smallText("Dash when surrounded. Collect paint early.", w/2, h*0.56);
+  }
+}
+
+/***********************
+ * Buttons
+ ***********************/
+document.getElementById("btnStart").addEventListener("click", ()=>{
+  if(!running){
+    running = true;
+    tPrev = performance.now();
+    toast("GO!");
+    requestAnimationFrame(loop);
+  }
+});
+document.getElementById("btnRestart").addEventListener("click", ()=>{
+  toast("Restarted");
+  reset();
+});
+
+reset();
+</script>
+</body>
+</html>
