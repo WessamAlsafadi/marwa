@@ -200,6 +200,7 @@ const CONFIG = {
 
   // Put these images in the same folder as the HTML (recommended)
   characterImageSrc: "character.png", // transparent PNG recommended
+  bossImageSrc: "boss.png",
   endImageSrc: "final.jpg",           // final picture shown on win (jpg/png)
 };
 
@@ -223,6 +224,12 @@ let characterImgReady = false;
 characterImg.onload = () => characterImgReady = true;
 characterImg.onerror = () => characterImgReady = false;
 characterImg.src = CONFIG.characterImageSrc;
+
+const bossImg = new Image();
+let bossImgReady = false;
+bossImg.onload = () => bossImgReady = true;
+bossImg.onerror = () => bossImgReady = false;
+bossImg.src = CONFIG.bossImageSrc;
 
 const endImg = new Image();
 let endImgReady = false;
@@ -904,12 +911,21 @@ function drawFrame(dt){
     const B = state.boss;
 
     ctx.save();
-    ctx.translate(B.x,B.y);
-    ctx.fillStyle = `hsla(300,90%,55%,0.95)`;
-    ctx.beginPath(); ctx.arc(0,0,B.r,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle="rgba(0,0,0,0.35)";
-    ctx.fillRect(-18,-8,36,10);
-    ctx.restore();
+ctx.translate(B.x, B.y);
+
+if (bossImgReady) {
+  const size = B.r * 2.4;               // tweak this if needed (2.0 - 3.0)
+  ctx.drawImage(bossImg, -size/2, -size/2, size, size);
+} else {
+  // fallback boss if image not loaded
+  ctx.fillStyle = `hsla(300,90%,55%,0.95)`;
+  ctx.beginPath(); ctx.arc(0,0,B.r,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="rgba(0,0,0,0.35)";
+  ctx.fillRect(-18,-8,36,10);
+}
+
+ctx.restore();
+
 
     const bw = Math.min(340, w*0.70);
     const bh = 10;
